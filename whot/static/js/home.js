@@ -35,7 +35,9 @@ async function join(role) {
   try {
     const info = await (await fetch(`/api/rooms/${code}/`)).json();
     if (!info.exists) return fail(`No room "${code}". Check the code with your host.`);
-    location.href = `/room/${code}/?role=${role}`;
+    // A match already in progress (or a full table) can only be watched.
+    const target = role === "player" && (info.status !== "lobby" || info.full) ? "spectate" : role;
+    location.href = `/room/${code}/?role=${target}`;
   } catch { fail("No connection. Check your data and try again."); }
 }
 

@@ -1,9 +1,13 @@
 import json
+import logging
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from . import registry
 from .engine import GameError, clean_name
+
+log = logging.getLogger(__name__)
+MAX_MSG = 2048  # bytes; real messages are tiny
 
 
 class RoomConsumer(AsyncWebsocketConsumer):
@@ -22,10 +26,13 @@ class RoomConsumer(AsyncWebsocketConsumer):
         g = self.game
         if not g or not self.pid:
             return
-        g.consumers.discard(self)
-        if not any(c.pid == self.pid for c in g.consumers):
-            g.disconnected(self.pid)
-        await registry.broadcast(g)
+        try:
+            g.consumers.discard(self)
+            if not any(c.pid == self.pid for c in g.consumers):
+                g.disconnected(self.pid)
+            await registry.broadcast(g)
+        except Exception:
+            log.exception("disconnect failed in room %s", g.code)
 
     async def send_json(self, data):
         await self.send(text_data=json.dumps(data))
@@ -36,10 +43,15 @@ class RoomConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):
         g = self.game
+        if text_data and len(text_data) > MAX_MSG:
+            return
         try:
             msg = json.loads(text_data or "")
             t = msg.get("t")
         except (ValueError, AttributeError):
+            return
+        if t == "ping":  # keep-alive so proxies don't drop idle sockets
+            await self.send_json({"t": "pong"})
             return
         if g is None:
             return
@@ -70,6 +82,10 @@ class RoomConsumer(AsyncWebsocketConsumer):
             await self.send_json({"t": "error", "msg": str(e)})
         except (TypeError, ValueError):
             return
+        except Exception:
+            # A bug must never kill the socket (that is what shows "Reconnecting..." forever).
+            log.exception("room %s: unhandled error on %r", g.code, t)
+            await self.send_json({"t": "error", "msg": "Something went wrong. Please try again."})
         await registry.broadcast(g)
 
     async def _join(self, msg):
@@ -89,3 +105,4 @@ class RoomConsumer(AsyncWebsocketConsumer):
             except GameError as e:  # started or full: watch instead
                 g.join_spectator(pid, name)
                 await self.send_json({"t": "error", "msg": str(e)})
+        await self.push_state()  # make sure the joiner always gets the table straight away

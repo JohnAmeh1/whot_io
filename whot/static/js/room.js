@@ -5,37 +5,144 @@ const EMOTES = { clap: "👏", laugh: "😂", fire: "🔥", angry: "😤", wow: 
 const AVATARS = ["#e8283a", "#f08a00", "#ffc83d", "#2ee66f", "#14b8a6", "#4da3ff", "#8b5cf6", "#ec4899", "#94a3b8", "#fb7185"];
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-let ws, state = null, retry = 0, lastLog = null, gone = false;
-let role = new URLSearchParams(location.search).get("role") === "spectate" ? "spectate" : "player";
+let ws, state = null, retry = 0, lastLog = null, gone = false, started = false, joined = false;
+let hbTimer, joinTimer, openTimer, reconnectTimer;
+const role = new URLSearchParams(location.search).get("role") === "spectate" ? "spectate" : "player";
+
+// A watcher gets its own per-tab identity. Otherwise, opening "Watch" in the same browser as a
+// player would reuse that player's id and the server would treat the watcher as the same person.
+function spectatorId() {
+  try {
+    let id = sessionStorage.getItem("whot_spid");
+    if (id && id.length >= 8) return id;
+    const a = new Uint8Array(16);
+    crypto.getRandomValues(a);
+    id = "w" + Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
+    sessionStorage.setItem("whot_spid", id);
+    return id;
+  } catch {
+    return "w" + Math.random().toString(16).slice(2).padEnd(15, "0");
+  }
+}
+const getPid = () => (role === "spectate" ? spectatorId() : myId());
 
 // ---------- connection ----------
 const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+const sendJoin = () => send({ t: "join", pid: getPid(), name: getName(), role });
+
+function setConn(text) {
+  const el = $("conn");
+  el.textContent = text || "";
+  el.hidden = !text;
+}
+
+function clearTimers() {
+  clearTimeout(openTimer);
+  clearInterval(joinTimer);
+  clearInterval(hbTimer);
+}
 
 function connect() {
+  started = true;
+  clearTimeout(reconnectTimer);
+  clearTimers();
+  setConn(retry ? "Reconnecting…" : "Connecting…");
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${proto}://${location.host}/ws/room/${CODE}/`);
-  ws.onopen = () => {
-    retry = 0;
-    $("conn").hidden = true;
-    send({ t: "join", pid: myId(), name: getName(), role });
+  const sock = new WebSocket(`${proto}://${location.host}/ws/room/${CODE}/`);
+  ws = sock;
+  joined = false;
+
+  // never hang on a socket that neither opens nor fails
+  openTimer = setTimeout(() => { if (sock.readyState === 0) sock.close(); }, 10000);
+
+  sock.onopen = () => {
+    clearTimeout(openTimer);
+    sendJoin();
+    // if the table hasn't arrived yet, ask again instead of waiting forever
+    joinTimer = setInterval(() => { if (joined || sock !== ws) clearInterval(joinTimer); else sendJoin(); }, 3000);
+    hbTimer = setInterval(() => send({ t: "ping" }), 25000);
   };
-  ws.onmessage = (e) => {
-    const m = JSON.parse(e.data);
-    if (m.t === "state") onState(m);
-    else if (m.t === "error") toast(m.msg, "bad");
-    else if (m.t === "gone") { gone = true; showGone(); }
+
+  sock.onmessage = (e) => {
+    let m;
+    try { m = JSON.parse(e.data); } catch { return; }
+    if (m.t === "state") {
+      joined = true;
+      retry = 0;
+      setConn("");
+      try { onState(m); } catch (err) { console.error(err); showCrash(); }
+    } else if (m.t === "error") {
+      Sfx.play("error");
+      toast(m.msg, "bad");
+    } else if (m.t === "gone") {
+      gone = true;
+      clearTimers();
+      setConn("");
+      showGone();
+    }
   };
-  ws.onclose = () => {
+
+  sock.onclose = () => {
+    if (sock !== ws) return;
+    clearTimers();
     if (gone) return;
-    $("conn").hidden = false;
-    setTimeout(connect, Math.min(800 * ++retry, 5000));
+    setConn("Reconnecting…");
+    reconnectTimer = setTimeout(connect, Math.min(800 * ++retry, 5000));
   };
 }
+
+// come back fast when the phone wakes up or the network returns
+function wake() {
+  if (!started || gone || document.hidden) return;
+  if (!ws || ws.readyState > 1) { clearTimeout(reconnectTimer); connect(); }
+}
+document.addEventListener("visibilitychange", wake);
+window.addEventListener("online", wake);
 
 function showGone() {
   stage.innerHTML = `<section class="panel center"><h2>Room ${esc(CODE)} isn't open</h2>
     <p>The code may be wrong, or the game ended because everyone left.</p>
     <a class="btn btn-green" href="/">Back to home</a></section>`;
+}
+
+function showCrash() {
+  stage.innerHTML = `<section class="panel center"><h2>Something went wrong</h2>
+    <p>The table couldn't be drawn. Reloading usually fixes it.</p>
+    <button class="btn btn-green" onclick="location.reload()">Reload</button></section>`;
+}
+
+// ---------- sounds ----------
+const myTurnIn = (x) => x.status === "playing" && x.me !== null && x.turn === x.me;
+
+// Turns a change between two snapshots into the right sound (watchers hear the table too).
+function soundsFor(prev, s, fresh) {
+  if (!prev) return; // first snapshot after joining: stay quiet
+
+  if (s.status === "playing" && prev.status !== "playing") { // cards are dealt
+    Sfx.play("deal", Math.min(12, s.players.length * 3));
+    if (myTurnIn(s)) Sfx.play("turn", null, 900);
+    return;
+  }
+  if (s.status === "lobby" && prev.status === "lobby" && s.players.length > prev.players.length) Sfx.play("join");
+  if (fresh.some((l) => l.kind === "chat")) Sfx.play("emote");
+
+  const played = !!s.top && (!prev.top || prev.top.id !== s.top.id);
+  if (played) {
+    Sfx.play("card");
+    const extra = { 1: "holdon", 2: "alert", 5: "alert", 8: "suspend", 14: "market", 20: "whot" }[s.top.num];
+    if (extra && s.status !== "finished") Sfx.play(extra, null, 140);
+  } else if (prev.status === "playing" && s.deck < prev.deck) {
+    const n = prev.deck - s.deck;
+    Sfx.play(n > 1 ? "pick" : "draw", n);
+  }
+
+  if (s.status === "finished" && prev.status === "playing") {
+    Sfx.play(s.me === null ? "turn" : s.iWon ? "win" : "lose", null, 500);
+    return;
+  }
+  if (s.status !== "playing") return;
+  if (myTurnIn(s) && !myTurnIn(prev)) Sfx.play("turn", null, played ? 350 : 0);
+  if (s.players.some((p, i) => p.count === 1 && prev.players[i] && prev.players[i].count !== 1)) Sfx.play("check", null, 250);
 }
 
 // ---------- state ----------
@@ -54,6 +161,7 @@ function onState(s) {
   document.title = myTurnNow ? "▶ Your turn | " + CODE : "Room " + CODE + " | whot_io";
   const topChanged = !state || !state.top || !s.top || state.top.id !== s.top.id;
   const handScroll = stage.querySelector(".hand")?.scrollLeft || 0;
+  try { soundsFor(state, s, fresh); } catch (err) { console.error(err); }
   state = s;
   if (s.status === "lobby") lobbyView(s);
   else tableView(s, topChanged, handScroll);
@@ -117,11 +225,11 @@ function tableView(s, topChanged, handScroll) {
     ? `<div class="wants" style="--c:${SHAPE_COLORS[s.shape]}">${shapeSVG(s.shape)}<span>wants ${SHAPE_NAMES[s.shape]}</span></div>` : "";
 
   let banner = "";
-  if (s.status === "playing" && s.pending) {
+  if (s.status === "playing" && s.pending && cur) {
     banner = `<div class="pending">Pick ${s.pending}! ${myTurn ? `Defend with a ${s.pendingNum} or tap the market` : `${esc(cur.name)} must defend with a ${s.pendingNum} or pick`}</div>`;
   }
 
-  let turnText;
+  let turnText = "";
   if (s.status === "finished") turnText = "Game over";
   else if (myTurn) turnText = "Your turn: play a matching card or tap the market";
   else if (cur) turnText = `${esc(cur.name)} is ${cur.bot ? "thinking" : "playing"}…`;
@@ -157,7 +265,7 @@ function tableView(s, topChanged, handScroll) {
   $("drawBtn").onclick = () => {
     if (s.status !== "playing") return;
     if (spectator) return toast("You're spectating");
-    if (!myTurn) return toast("Wait for your turn");
+    if (!myTurn) { Sfx.play("error"); return toast("Wait for your turn"); }
     send({ t: "draw" });
   };
   stage.querySelectorAll("[data-emote]").forEach((b) => (b.onclick = () => send({ t: "emote", key: b.dataset.emote })));
@@ -167,8 +275,9 @@ function tableView(s, topChanged, handScroll) {
 function tapCard(id) {
   const s = state;
   if (s.status !== "playing") return;
-  if (s.turn !== s.me) return toast("Wait for your turn");
+  if (s.turn !== s.me) { Sfx.play("error"); return toast("Wait for your turn"); }
   if (!s.playable.includes(id)) {
+    Sfx.play("error");
     return toast(s.pending ? `Defend with a ${s.pendingNum} or tap the market` : "That card doesn't match", "bad");
   }
   const card = s.hand.find((c) => c.id === id);
@@ -181,6 +290,7 @@ function pickShape(id) {
     `<button class="shape-btn" data-shape="${sh}" style="--c:${SHAPE_COLORS[sh]}">${shapeSVG(sh)}<span>${SHAPE_NAMES[sh]}</span></button>`).join("");
   openModal(`<h2>Choose a shape</h2><div class="shapes">${opts}</div><button class="btn btn-ghost" id="mCancel">Cancel</button>`);
   $("modalBox").querySelectorAll("[data-shape]").forEach((b) => (b.onclick = () => {
+    Sfx.play("click");
     closeModal();
     send({ t: "play", card: id, shape: b.dataset.shape });
   }));
@@ -230,6 +340,16 @@ async function share() {
 }
 $("codeBtn").onclick = copyCode;
 $("shareBtn").onclick = share;
+
+const muteBtn = $("muteBtn");
+function paintMute() {
+  muteBtn.textContent = Sfx.muted ? "🔇" : "🔊";
+  muteBtn.setAttribute("aria-pressed", String(!Sfx.muted));
+  muteBtn.setAttribute("aria-label", Sfx.muted ? "Turn sound on" : "Turn sound off");
+}
+muteBtn.onclick = () => { Sfx.toggle(); paintMute(); Sfx.play("click"); };
+paintMute();
+
 $("exitBtn").onclick = () => {
   openModal(`<h2>Leave this room?</h2><p>${state && state.status === "playing" && state.me !== null ? "The computer won't take your place, and your cards go back to the market." : "You can rejoin with the room code."}</p>
     <div class="row"><button class="btn btn-ghost" id="mStay">Stay</button><button class="btn btn-gold" id="mLeave">Leave</button></div>`);
@@ -241,7 +361,7 @@ $("exitBtn").onclick = () => {
 function askName() {
   openModal(`<h2>Pick a username</h2><p>This is the name other players will see.</p>
     <input id="nameIn" class="code-input name-in" maxlength="16" placeholder="e.g. Emeka" autocomplete="nickname">
-    <button class="btn btn-green" id="nameGo">Join the game</button>`);
+    <button class="btn btn-green" id="nameGo">${role === "spectate" ? "Watch the game" : "Join the game"}</button>`);
   const go = () => {
     const n = $("nameIn").value.trim().replace(/\s+/g, " ");
     if (n.length < 2) return toast("Use at least 2 letters", "bad");

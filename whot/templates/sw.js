@@ -1,10 +1,11 @@
-{% load static %}const CACHE = "whot-io-v1";
+{% load static %}const CACHE = "whot-io-v2";
 const SHELL = [
   "{% url 'offline' %}",
   "{% static 'css/whot.css' %}",
   "{% static 'js/common.js' %}",
   "{% static 'js/home.js' %}",
   "{% static 'js/room.js' %}",
+  "{% static 'js/sound.js' %}",
   "{% static 'icons/icon-192.png' %}",
   "{% static 'icons/icon-512.png' %}",
 ];
