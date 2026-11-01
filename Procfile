@@ -1,1 +1,1 @@
-web: python manage.py migrate --noinput && python manage.py collectstatic --noinput && python manage.py seed_projects && (python manage.py sync_github_projects || true) && gunicorn whot_io.wsgi --bind 0.0.0.0:$PORT --workers 2
+web: daphne whot_io.asgi:application --bind 0.0.0.0:$PORT
