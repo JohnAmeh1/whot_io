@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+{% block bodyclass %}home{% endblock %}
+{% block body %}
+<main class="lobby-wrap">
+  <header class="hero">
+    <div class="fan" aria-hidden="true">
+      <div class="card whot tilt-l"><div class="w-num">20</div><div class="w-word">WHOT</div></div>
+      <div class="card s-circle tilt-m" data-demo="circle,5"></div>
+      <div class="card s-star tilt-r" data-demo="star,8"></div>
+    </div>
+    <h1 class="logo">whot<span>_io</span></h1>
+    <p class="tagline">Naija's card game, online. Check up!</p>
+  </header>
+
+  <section class="panel" aria-label="Start playing">
+    <label class="field">
+      <span>Your username</span>
+      <input id="name" maxlength="16" autocomplete="nickname" placeholder="e.g. Emeka" enterkeyhint="go">
+    </label>
+
+    <div class="stack">
+      <button class="btn btn-green" id="hostBtn">Host a game</button>
+      <div class="cpu-row">
+        <button class="btn btn-gold" id="cpuBtn">Play the computer</button>
+        <div class="chips" id="botChips" role="radiogroup" aria-label="Number of computer opponents">
+          <button class="chip on" data-n="1" role="radio" aria-checked="true">1</button>
+          <button class="chip" data-n="2" role="radio" aria-checked="false">2</button>
+          <button class="chip" data-n="3" role="radio" aria-checked="false">3</button>
+          <button class="chip" data-n="5" role="radio" aria-checked="false">5</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"><span>or join a room</span></div>
+
+    <div class="join">
+      <input id="code" class="code-input" maxlength="8" placeholder="CODE" autocapitalize="characters" autocomplete="off" spellcheck="false" aria-label="Room code">
+      <button class="btn btn-blue" id="joinBtn">Join</button>
+      <button class="btn btn-ghost" id="watchBtn">Watch</button>
+    </div>
+    <p class="error" id="err" role="alert"></p>
+  </section>
+
+  <button class="btn btn-ghost install" id="installBtn" hidden>Install app on this phone</button>
+  <p class="ios-tip" id="iosTip" hidden>On iPhone: tap Share, then “Add to Home Screen”.</p>
+
+  <details class="rules panel">
+    <summary>How to play</summary>
+    <p>Match the top card by <b>shape</b> or <b>number</b>. Can't play? Tap the market to pick one card. First to finish all cards wins. If the market runs out, the fewest cards wins.</p>
+    <ul class="special">
+      <li><b>1</b> Hold on: play again</li>
+      <li><b>2</b> Pick two: next player picks 2, or defends with a 2</li>
+      <li><b>5</b> Pick three: next player picks 3, or defends with a 5</li>
+      <li><b>8</b> Suspension: next player misses a turn</li>
+      <li><b>14</b> General market: everyone else picks 1, you play again</li>
+      <li><b>20</b> Whot: play anytime and choose the shape</li>
+    </ul>
+  </details>
+</main>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/home.js' %}"></script>{% endblock %}

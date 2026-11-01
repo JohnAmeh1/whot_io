@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Room {{ code }} | whot_io{% endblock %}
+{% block bodyclass %}room{% endblock %}
+{% block body %}
+<div id="app" data-code="{{ code }}">
+  <header class="topbar">
+    <a class="brand" href="{% url 'home' %}" aria-label="whot_io home">whot<span>_io</span></a>
+    <button class="room-pill" id="codeBtn" title="Copy room code">Room <b>{{ code }}</b></button>
+    <button class="icon-btn" id="shareBtn" aria-label="Share room">Share</button>
+    <button class="icon-btn danger" id="exitBtn" aria-label="Leave room">Exit</button>
+  </header>
+  <div id="conn" class="conn" hidden>Reconnecting…</div>
+  <main id="stage" aria-live="off"></main>
+</div>
+
+<div id="modal" class="modal" hidden>
+  <div class="modal-box" id="modalBox"></div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/room.js' %}"></script>{% endblock %}

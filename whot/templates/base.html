@@ -1,0 +1,24 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}whot_io | Nigerian Whot online{% endblock %}</title>
+  <meta name="description" content="Play Nigerian Whot online. Host a room, share the code, play with up to 10 people, spectate, or take on the computer.">
+  <meta name="theme-color" content="#0a0f24">
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <link rel="icon" href="{% static 'icons/icon-192.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="whot_io">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="{% static 'css/whot.css' %}">
+</head>
+<body class="{% block bodyclass %}{% endblock %}">
+{% block body %}{% endblock %}
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="{% static 'js/common.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
