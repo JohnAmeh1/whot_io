@@ -2,7 +2,7 @@ const $ = (id) => document.getElementById(id);
 const stage = $("stage");
 const CODE = $("app").dataset.code;
 const EMOTES = { clap: "👏", laugh: "😂", fire: "🔥", angry: "😤", wow: "😮", gg: "GG 🤝" };
-const AVATARS = ["#e8283a", "#f08a00", "#ffc83d", "#2ee66f", "#14b8a6", "#4da3ff", "#8b5cf6", "#ec4899", "#94a3b8", "#fb7185"];
+const AVATARS = ["#ffc31a", "#ff7d6b", "#6ddb62", "#5cc8ff", "#c79bff", "#ff9f43", "#2dd4bf", "#f472b6", "#cbd5c0", "#fda4af"];
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 let ws, state = null, retry = 0, lastLog = null, gone = false, started = false, joined = false;
@@ -100,15 +100,15 @@ document.addEventListener("visibilitychange", wake);
 window.addEventListener("online", wake);
 
 function showGone() {
-  stage.innerHTML = `<section class="panel center"><h2>Room ${esc(CODE)} isn't open</h2>
-    <p>The code may be wrong, or the game ended because everyone left.</p>
-    <a class="btn btn-green" href="/">Back to home</a></section>`;
+  stage.innerHTML = `<section class="panel center"><h2 style="font-family:var(--display);font-weight:400;color:var(--primary)">Room ${esc(CODE)} isn't open</h2>
+    <p class="muted">The code may be wrong, or the game ended because everyone left.</p>
+    <a class="btn" href="/">Back to home</a></section>`;
 }
 
 function showCrash() {
   stage.innerHTML = `<section class="panel center"><h2>Something went wrong</h2>
     <p>The table couldn't be drawn. Reloading usually fixes it.</p>
-    <button class="btn btn-green" onclick="location.reload()">Reload</button></section>`;
+    <button class="btn" onclick="location.reload()">Reload</button></section>`;
 }
 
 // ---------- sounds ----------
@@ -161,10 +161,11 @@ function onState(s) {
   document.title = myTurnNow ? "▶ Your turn | " + CODE : "Room " + CODE + " | whot_io";
   const topChanged = !state || !state.top || !s.top || state.top.id !== s.top.id;
   const handScroll = stage.querySelector(".hand")?.scrollLeft || 0;
+  const known = state ? new Set(state.hand.map((c) => c.id)) : null; // cards already in hand: only new ones animate in
   try { soundsFor(state, s, fresh); } catch (err) { console.error(err); }
   state = s;
   if (s.status === "lobby") lobbyView(s);
-  else tableView(s, topChanged, handScroll);
+  else tableView(s, topChanged, handScroll, known);
 }
 
 // ---------- lobby ----------
@@ -178,22 +179,22 @@ function lobbyView(s) {
     const tags = [i === s.host ? "host" : "", p.bot ? "cpu" : "", i === s.me ? "you" : "", p.online ? "" : "offline"]
       .filter(Boolean).map((t) => `<em class="tag-${t}">${t}</em>`).join("");
     const kick = amHost && i !== s.me ? `<button class="x" data-kick="${i}" aria-label="Remove ${esc(p.name)}">✕</button>` : "";
-    slots += `<li class="slot"><span class="ava" style="background:${AVATARS[i]}">${esc(p.name[0].toUpperCase())}</span><span class="nm">${esc(p.name)}</span>${tags}${kick}</li>`;
+    slots += `<li class="slot"><span class="ava" style="background:${AVATARS[i]}">${esc(p.name[0].toUpperCase())}</span><span class="slot-main"><span class="nm" title="${esc(p.name)}">${esc(p.name.replace(/ \(CPU\)$/, ""))}</span><span class="tags">${tags}</span></span>${kick}</li>`;
   }
   const full = s.players.length >= s.max;
   let actions;
   if (amHost) {
-    actions = `<button class="btn btn-gold" id="botBtn" ${full ? "disabled" : ""}>+ Add computer</button>
-      <button class="btn btn-green" id="startBtn" ${s.players.length < 2 ? "disabled" : ""}>Start game</button>`;
+    actions = `<button class="btn btn-maroon" id="botBtn" ${full ? "disabled" : ""}>+ Add computer</button>
+      <button class="btn" id="startBtn" ${s.players.length < 2 ? "disabled" : ""}>Start game</button>`;
   } else if (spectator) {
-    actions = `<button class="btn btn-green" id="sitBtn" ${full ? "disabled" : ""}>Take a seat</button>`;
+    actions = `<button class="btn btn-lime" id="sitBtn" ${full ? "disabled" : ""}>Take a seat</button>`;
   } else {
     actions = `<p class="wait">Waiting for the host to start…</p>`;
   }
-  stage.innerHTML = `<section class="lobby-card">
+  stage.innerHTML = `<section class="lobby-card panel">
     <p class="kicker">${spectator ? "You're watching" : "Share this code to invite players"}</p>
     <button class="codebox" id="bigCode" aria-label="Copy room code">${[...CODE].map((c) => `<span>${esc(c)}</span>`).join("")}</button>
-    <div class="row"><button class="btn btn-blue" id="shareBtn2">Share invite</button><button class="btn btn-ghost" id="copyBtn">Copy code</button></div>
+    <div class="row"><button class="btn" id="shareBtn2">Share invite</button><button class="btn btn-felt" id="copyBtn">Copy code</button></div>
     <h2 class="count">${s.players.length} of ${s.max} seats filled${s.spectators.length ? ` · ${s.spectators.length} watching` : ""}</h2>
     <ul class="slots">${slots}</ul>
     <div class="row actions">${actions}</div>
@@ -207,7 +208,7 @@ function lobbyView(s) {
 }
 
 // ---------- table ----------
-function tableView(s, topChanged, handScroll) {
+function tableView(s, topChanged, handScroll, known) {
   const spectator = s.me === null;
   const myTurn = s.status === "playing" && s.turn === s.me;
   const cur = s.turn !== null ? s.players[s.turn] : null;
@@ -217,12 +218,12 @@ function tableView(s, topChanged, handScroll) {
     const check = p.count === 1 && s.status === "playing" ? `<span class="check">CHECK UP!</span>` : "";
     return `<div class="seat${turn}${p.online ? "" : " off"}">
       <span class="ava" style="background:${AVATARS[i]}">${esc(p.name[0].toUpperCase())}</span>
-      <span class="nm">${esc(p.name)}</span>
-      <span class="cnt"><i class="mini"></i>${p.count}</span>${check}</div>`;
+      <span class="nm" title="${esc(p.name)}">${esc(p.name.replace(/ \(CPU\)$/, ""))}</span>
+      <span class="cnt">${cardBackHTML("xs")}${p.count}</span>${check}</div>`;
   }).join("");
 
   const wants = s.top && s.top.shape === "whot"
-    ? `<div class="wants" style="--c:${SHAPE_COLORS[s.shape]}">${shapeSVG(s.shape)}<span>wants ${SHAPE_NAMES[s.shape]}</span></div>` : "";
+    ? `<div class="wants">${shapeSVG(s.shape)}<span>wants ${SHAPE_NAMES[s.shape]}</span></div>` : "";
 
   let banner = "";
   if (s.status === "playing" && s.pending && cur) {
@@ -234,19 +235,21 @@ function tableView(s, topChanged, handScroll) {
   else if (myTurn) turnText = "Your turn: play a matching card or tap the market";
   else if (cur) turnText = `${esc(cur.name)} is ${cur.bot ? "thinking" : "playing"}…`;
 
-  const hand = s.hand.map((c) => {
+  const hand = s.hand.map((c, i) => {
     const ok = s.playable.includes(c.id);
-    return cardHTML(c, myTurn ? (ok ? "ok" : "dim") : "");
+    const isNew = known && !known.has(c.id);
+    const cls = [myTurn ? (ok ? "ok" : "dim") : "", isNew ? "animate-deal" : ""].join(" ");
+    return cardHTML(c, cls, "md", "button").replace("<button ", `<button style="animation-delay:${Math.min(i, 8) * 0.05}s" `);
   }).join("");
 
   stage.innerHTML = `<section class="table">
     <div class="seats">${seats}</div>
-    <div class="felt">
+    <div class="center">
       ${banner}
       <div class="piles">
         <button class="pile draw ${myTurn ? "can" : ""}" id="drawBtn" aria-label="Market, ${s.deck} cards left">
-          <div class="card back"><span>WHOT</span></div><b class="badge">${s.deck}</b><small>Market</small></button>
-        <div class="pile top">${s.top ? cardHTML(s.top, topChanged ? "pop" : "") : ""}<small>Played</small></div>
+          ${cardBackHTML("lg")}<b class="badge">${s.deck}</b><small>Market</small></button>
+        <div class="pile top">${s.top ? cardHTML(s.top, topChanged ? "animate-pop" : "", "lg") : ""}<small>Played</small></div>
       </div>
       ${wants}
     </div>
@@ -260,7 +263,7 @@ function tableView(s, topChanged, handScroll) {
   const h = $("hand");
   if (h) {
     h.scrollLeft = handScroll;
-    h.querySelectorAll(".card").forEach((el) => (el.onclick = () => tapCard(+el.dataset.id)));
+    h.querySelectorAll(".wc").forEach((el) => (el.onclick = () => tapCard(+el.dataset.id)));
   }
   $("drawBtn").onclick = () => {
     if (s.status !== "playing") return;
@@ -287,8 +290,8 @@ function tapCard(id) {
 
 function pickShape(id) {
   const opts = Object.keys(SHAPE_NAMES).map((sh) =>
-    `<button class="shape-btn" data-shape="${sh}" style="--c:${SHAPE_COLORS[sh]}">${shapeSVG(sh)}<span>${SHAPE_NAMES[sh]}</span></button>`).join("");
-  openModal(`<h2>Choose a shape</h2><div class="shapes">${opts}</div><button class="btn btn-ghost" id="mCancel">Cancel</button>`);
+    `<button class="shape-btn" data-shape="${sh}">${shapeSVG(sh)}<span>${SHAPE_NAMES[sh]}</span></button>`).join("");
+  openModal(`<h2>Choose a shape</h2><div class="shapes">${opts}</div><button class="btn btn-felt" id="mCancel">Cancel</button>`);
   $("modalBox").querySelectorAll("[data-shape]").forEach((b) => (b.onclick = () => {
     Sfx.play("click");
     closeModal();
@@ -303,16 +306,16 @@ function finishHTML(s) {
   const title = s.iWon ? "You won! 🎉" : `${esc(s.winner || "Nobody")} wins`;
   const ranks = s.players.map((p) => `<li><span>${esc(p.name)}</span><b>${p.count} card${p.count === 1 ? "" : "s"}</b></li>`).join("");
   const again = s.me === s.host && !spectator
-    ? `<button class="btn btn-green" id="againBtn">Play again</button>` : `<p class="wait">Waiting for the host to deal again…</p>`;
+    ? `<button class="btn" id="againBtn">Play again</button>` : `<p class="wait">Waiting for the host to deal again…</p>`;
   return `<div class="finish"><div class="finish-box">
     <div class="trophy">🏆</div><h2>${title}</h2>
     <ul class="ranks">${ranks}</ul>
-    <div class="row">${again}<a class="btn btn-ghost" href="/">Home</a></div></div>
+    <div class="row">${again}<a class="btn btn-felt" href="/">Home</a></div></div>
     ${s.iWon ? confetti() : ""}</div>`;
 }
 function bindFinish() { if ($("againBtn")) $("againBtn").onclick = () => send({ t: "rematch" }); }
 function confetti() {
-  const cols = ["#e8283a", "#ffc83d", "#2ee66f", "#4da3ff", "#c77dff"];
+  const cols = ["#a51d2b", "#ffc31a", "#6ddb62", "#fdf6e6", "#ff7d6b"];
   return `<div class="confetti" aria-hidden="true">${Array.from({ length: 36 }, (_, i) =>
     `<i style="left:${(i * 29) % 100}%;background:${cols[i % 5]};animation-delay:${(i % 9) * 0.18}s"></i>`).join("")}</div>`;
 }
@@ -343,7 +346,7 @@ $("shareBtn").onclick = share;
 
 const muteBtn = $("muteBtn");
 function paintMute() {
-  muteBtn.textContent = Sfx.muted ? "🔇" : "🔊";
+  muteBtn.innerHTML = icon(Sfx.muted ? "mute" : "volume");
   muteBtn.setAttribute("aria-pressed", String(!Sfx.muted));
   muteBtn.setAttribute("aria-label", Sfx.muted ? "Turn sound on" : "Turn sound off");
 }
@@ -352,7 +355,7 @@ paintMute();
 
 $("exitBtn").onclick = () => {
   openModal(`<h2>Leave this room?</h2><p>${state && state.status === "playing" && state.me !== null ? "The computer won't take your place, and your cards go back to the market." : "You can rejoin with the room code."}</p>
-    <div class="row"><button class="btn btn-ghost" id="mStay">Stay</button><button class="btn btn-gold" id="mLeave">Leave</button></div>`);
+    <div class="row"><button class="btn btn-felt" id="mStay">Stay</button><button class="btn btn-maroon" id="mLeave">Leave</button></div>`);
   $("mStay").onclick = closeModal;
   $("mLeave").onclick = () => { send({ t: "leave" }); location.href = "/"; };
 };
@@ -361,7 +364,7 @@ $("exitBtn").onclick = () => {
 function askName() {
   openModal(`<h2>Pick a username</h2><p>This is the name other players will see.</p>
     <input id="nameIn" class="code-input name-in" maxlength="16" placeholder="e.g. Emeka" autocomplete="nickname">
-    <button class="btn btn-green" id="nameGo">${role === "spectate" ? "Watch the game" : "Join the game"}</button>`);
+    <button class="btn btn-block" id="nameGo">${role === "spectate" ? "Watch the game" : "Join the game"}</button>`);
   const go = () => {
     const n = $("nameIn").value.trim().replace(/\s+/g, " ");
     if (n.length < 2) return toast("Use at least 2 letters", "bad");

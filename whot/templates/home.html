@@ -1,62 +1,65 @@
 {% extends "base.html" %}
 {% load static %}
+{% block title %}whot_io | Play Nigerian Whot online with friends{% endblock %}
 {% block bodyclass %}home{% endblock %}
 {% block body %}
-<main class="lobby-wrap">
+<main class="home-wrap">
   <header class="hero">
-    <div class="fan" aria-hidden="true">
-      <div class="card whot tilt-l"><div class="w-num">20</div><div class="w-word">WHOT</div></div>
-      <div class="card s-circle tilt-m" data-demo="circle,5"></div>
-      <div class="card s-star tilt-r" data-demo="star,8"></div>
-    </div>
-    <h1 class="logo">whot<span>_io</span></h1>
-    <p class="tagline">Naija's card game, online. Check up!</p>
+    <div class="hero-cards" id="heroCards" aria-hidden="true"></div>
+    <h1 class="sr-only">whot_io: Nigerian Whot online</h1>
+    <a class="logo logo-lg" href="{% url 'home' %}" aria-hidden="true" tabindex="-1">WHOT<span>_</span>IO</a>
+    <p class="lede">Naija's favourite card game. Host a room, share the code, and play with up to <b>10 players</b>.</p>
   </header>
 
-  <section class="panel" aria-label="Start playing">
-    <label class="field">
-      <span>Your username</span>
-      <input id="name" maxlength="16" autocomplete="nickname" placeholder="e.g. Emeka" enterkeyhint="go">
-    </label>
+  <section class="panel who" id="who" aria-label="Your username"></section>
 
-    <div class="stack">
-      <button class="btn btn-green" id="hostBtn">Host a game</button>
-      <div class="cpu-row">
-        <button class="btn btn-gold" id="cpuBtn">Play the computer</button>
-        <div class="chips" id="botChips" role="radiogroup" aria-label="Number of computer opponents">
-          <button class="chip on" data-n="1" role="radio" aria-checked="true">1</button>
-          <button class="chip" data-n="2" role="radio" aria-checked="false">2</button>
-          <button class="chip" data-n="3" role="radio" aria-checked="false">3</button>
-          <button class="chip" data-n="5" role="radio" aria-checked="false">5</button>
-        </div>
+  <section class="actions">
+    <div class="panel act act-gold">
+      <i data-icon="crown"></i>
+      <h2>Host a game</h2>
+      <p>Create a room and get a code to share with your friends.</p>
+      <button class="btn btn-block" id="hostBtn">Create room</button>
+    </div>
+
+    <div class="panel act act-lime">
+      <i data-icon="users"></i>
+      <h2>Join a room</h2>
+      <p>Got a code? Jump in, or just watch a match that's already going.</p>
+      <input id="code" class="code-input" maxlength="8" placeholder="ROOM CODE" autocapitalize="characters" autocomplete="off" spellcheck="false" aria-label="Room code">
+      <div class="two">
+        <button class="btn btn-lime" id="joinBtn"><i data-icon="login"></i> Play</button>
+        <button class="btn btn-felt" id="watchBtn"><i data-icon="eye"></i> Watch</button>
       </div>
     </div>
 
-    <div class="divider"><span>or join a room</span></div>
-
-    <div class="join">
-      <input id="code" class="code-input" maxlength="8" placeholder="CODE" autocapitalize="characters" autocomplete="off" spellcheck="false" aria-label="Room code">
-      <button class="btn btn-blue" id="joinBtn">Join</button>
-      <button class="btn btn-ghost" id="watchBtn">Watch</button>
+    <div class="panel act act-red">
+      <i data-icon="bot"></i>
+      <h2>Vs computer</h2>
+      <p>Practice against computer players. No code needed.</p>
+      <div class="chips" id="botChips" role="radiogroup" aria-label="Number of computer players">
+        <button class="chip" data-n="1" role="radio" aria-checked="false">1</button>
+        <button class="chip" data-n="2" role="radio" aria-checked="false">2</button>
+        <button class="chip on" data-n="3" role="radio" aria-checked="true">3</button>
+        <button class="chip" data-n="4" role="radio" aria-checked="false">4</button>
+        <button class="chip" data-n="5" role="radio" aria-checked="false">5</button>
+      </div>
+      <p class="chips-label" style="flex:none">computer players</p>
+      <button class="btn btn-maroon btn-block" id="cpuBtn">Play now</button>
     </div>
-    <p class="error" id="err" role="alert"></p>
   </section>
+  <p class="error" id="err" role="alert"></p>
 
-  <button class="btn btn-ghost install" id="installBtn" hidden>Install app on this phone</button>
-  <p class="ios-tip" id="iosTip" hidden>On iPhone: tap Share, then “Add to Home Screen”.</p>
+  <div class="install-row">
+    <button class="btn btn-felt btn-sm" id="installBtn" hidden>Install app on this phone</button>
+    <p class="ios-tip" id="iosTip" hidden>On iPhone: tap Share, then “Add to Home Screen”.</p>
+  </div>
 
-  <details class="rules panel">
-    <summary>How to play</summary>
-    <p>Match the top card by <b>shape</b> or <b>number</b>. Can't play? Tap the market to pick one card. First to finish all cards wins. If the market runs out, the fewest cards wins.</p>
-    <ul class="special">
-      <li><b>1</b> Hold on: play again</li>
-      <li><b>2</b> Pick two: next player picks 2, or defends with a 2</li>
-      <li><b>5</b> Pick three: next player picks 3, or defends with a 5</li>
-      <li><b>8</b> Suspension: next player misses a turn</li>
-      <li><b>14</b> General market: everyone else picks 1, you play again</li>
-      <li><b>20</b> Whot: play anytime and choose the shape</li>
-    </ul>
-  </details>
+  <section class="panel rules">
+    <h2>How to play</h2>
+    <p>Match the top card by <b>shape</b> or <b>number</b>. Can't play? <b>Go to market</b> and pick a card. First to empty their hand shouts <b class="gold">CHECK UP</b> and wins! If the market runs out, the player with the fewest cards wins.</p>
+    <div class="specials" id="specials"></div>
+  </section>
+  <p class="foot">whot_io · Nigerian Whot online</p>
 </main>
 {% endblock %}
 {% block scripts %}<script src="{% static 'js/home.js' %}"></script>{% endblock %}

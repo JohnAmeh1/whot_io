@@ -2,8 +2,8 @@
 whot_io{% endblock %} {% block bodyclass %}room{% endblock %} {% block body %}
 <div id="app" data-code="{{ code }}">
   <header class="topbar">
-    <a class="brand" href="{% url 'home' %}" aria-label="whot_io home"
-      >whot<span>_io</span></a
+    <a class="logo" href="{% url 'home' %}" aria-label="whot_io home"
+      >WHOT<span>_</span>IO</a
     >
     <button class="room-pill" id="codeBtn" title="Copy room code">
       Room <b>{{ code }}</b>
@@ -13,14 +13,12 @@ whot_io{% endblock %} {% block bodyclass %}room{% endblock %} {% block body %}
       id="muteBtn"
       aria-label="Toggle sound"
       aria-pressed="true"
-    >
-      🔊
-    </button>
+    ></button>
     <button class="icon-btn" id="shareBtn" aria-label="Share room">
-      Share
+      <i data-icon="share"></i>
     </button>
     <button class="icon-btn danger" id="exitBtn" aria-label="Leave room">
-      Exit
+      <i data-icon="logout"></i>
     </button>
   </header>
   <div id="conn" class="conn" hidden>Connecting…</div>

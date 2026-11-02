@@ -1,4 +1,4 @@
-{% load static %}const CACHE = "whot-io-v2";
+{% load static %}const CACHE = "whot-io-v3";
 const SHELL = [
   "{% url 'offline' %}",
   "{% static 'css/whot.css' %}",

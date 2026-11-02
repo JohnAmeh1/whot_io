@@ -3,9 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>{% block title %}whot_io | Nigerian Whot online{% endblock %}</title>
-  <meta name="description" content="Play Nigerian Whot online. Host a room, share the code, play with up to 10 people, spectate, or take on the computer.">
-  <meta name="theme-color" content="#0a0f24">
+  <title>{% block title %}whot_io | Play Nigerian Whot online{% endblock %}</title>
+  <meta name="description" content="Play Nigerian Whot online. Host a room, share the code, play with up to 10 friends, spectate, or take on the computer.">
+  <meta name="theme-color" content="#123d2c">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="whot_io | Play Nigerian Whot online">
+  <meta property="og:description" content="Host a room, share the code, and play Whot with up to 10 friends, or take on the computer.">
   <link rel="manifest" href="{% url 'manifest' %}">
   <link rel="icon" href="{% static 'icons/icon-192.png' %}">
   <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}">
@@ -13,6 +16,9 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="whot_io">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="{% static 'css/whot.css' %}">
 </head>
 <body class="{% block bodyclass %}{% endblock %}">

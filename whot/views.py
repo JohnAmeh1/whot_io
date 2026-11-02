@@ -68,8 +68,8 @@ def manifest(request):
         "scope": "/",
         "display": "standalone",
         "orientation": "any",
-        "background_color": "#0a0f24",
-        "theme_color": "#0a0f24",
+        "background_color": "#123d2c",
+        "theme_color": "#123d2c",
         "categories": ["games"],
         "icons": [
             {"src": static("icons/icon-192.png"), "sizes": "192x192", "type": "image/png", "purpose": "any"},
